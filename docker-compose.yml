@@ -1,0 +1,171 @@
+services:
+
+  # ── Reverse proxy ────────────────────────────────────────────────────────────
+  traefik:
+    image: traefik:v3.3
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - ./certs:/etc/traefik/certs:ro
+    networks:
+      - traefik
+    restart: unless-stopped
+
+  # ── Shared database ──────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ── Artifact store (local dev) ───────────────────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    networks:
+      - internal
+      - traefik
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.minio-console.rule=Host(`minio.${TRAEFIK_DOMAIN}`)
+      - traefik.http.routers.minio-console.entrypoints=websecure
+      - traefik.http.routers.minio-console.tls=true
+      - traefik.http.routers.minio-console.service=minio-console
+      - traefik.http.services.minio-console.loadbalancer.server.port=9001
+    restart: unless-stopped
+
+  # ── Identity provider (local dev) ────────────────────────────────────────────
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.5.5
+    command: start-dev --import-realm
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: ${POSTGRES_USER}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      KC_HOSTNAME: keycloak.${TRAEFIK_DOMAIN}
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+    volumes:
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    networks:
+      - internal
+      - traefik
+    depends_on:
+      postgres:
+        condition: service_healthy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.keycloak.rule=Host(`keycloak.${TRAEFIK_DOMAIN}`)
+      - traefik.http.routers.keycloak.entrypoints=websecure
+      - traefik.http.routers.keycloak.tls=true
+      - traefik.http.services.keycloak.loadbalancer.server.port=8080
+    restart: unless-stopped
+
+  # ── MLflow tracking server ───────────────────────────────────────────────────
+  mlflow:
+    build: ./mlflow
+    environment:
+      MLFLOW_BACKEND_STORE_URI: ${MLFLOW_BACKEND_STORE_URI}
+      MLFLOW_ARTIFACT_ROOT: ${MLFLOW_ARTIFACT_ROOT}
+      MLFLOW_S3_ENDPOINT_URL: ${MLFLOW_S3_ENDPOINT_URL}
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+    networks:
+      - internal
+      - traefik
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.mlflow.rule=Host(`mlflow.${TRAEFIK_DOMAIN}`)
+      - traefik.http.routers.mlflow.entrypoints=websecure
+      - traefik.http.routers.mlflow.tls=true
+      - traefik.http.services.mlflow.loadbalancer.server.port=5000
+    restart: unless-stopped
+
+  # ── RBAC API ─────────────────────────────────────────────────────────────────
+  api:
+    build: ./backend
+    env_file: .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI}
+      AUTH_PROVIDER: ${AUTH_PROVIDER}
+      JWT_ISSUER: ${JWT_ISSUER}
+      JWT_AUDIENCE: ${JWT_AUDIENCE}
+      JWKS_URL: ${JWKS_URL}
+    networks:
+      - internal
+      - traefik
+    depends_on:
+      postgres:
+        condition: service_healthy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.api.rule=Host(`api.${TRAEFIK_DOMAIN}`)
+      - traefik.http.routers.api.entrypoints=websecure
+      - traefik.http.routers.api.tls=true
+      - traefik.http.services.api.loadbalancer.server.port=8000
+    restart: unless-stopped
+
+  # ── Next.js frontend ─────────────────────────────────────────────────────────
+  frontend:
+    build: ./frontend
+    environment:
+      NEXT_PUBLIC_API_URL: https://api.${TRAEFIK_DOMAIN}
+      API_URL: http://api:8000
+      NEXTAUTH_URL: https://${TRAEFIK_DOMAIN}
+      NODE_ENV: production
+    networks:
+      - internal
+      - traefik
+    depends_on:
+      - api
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.frontend.rule=Host(`${TRAEFIK_DOMAIN}`)
+      - traefik.http.routers.frontend.entrypoints=websecure
+      - traefik.http.routers.frontend.tls=true
+      - traefik.http.services.frontend.loadbalancer.server.port=3000
+    restart: unless-stopped
+
+networks:
+  traefik:
+  internal:
+
+volumes:
+  postgres_data:
+  minio_data:

@@ -1,0 +1,36 @@
+# Generated certs — create with scripts/gen-certs.sh
+certs/*.pem
+certs/*.crt
+certs/*.key
+
+# Env
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+.ty_cache/
+.mypy_cache/
+
+# Node
+node_modules/
+.next/
+out/
+.pnpm-store/
+pnpm-debug.log*
+tsconfig.tsbuildinfo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker volumes (local bind-mounts if any)
+postgres_data/
+minio_data/

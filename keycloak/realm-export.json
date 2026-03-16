@@ -1,0 +1,98 @@
+{
+  "realm": "rbac-mlflow",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "accessTokenLifespan": 300,
+  "clients": [
+    {
+      "clientId": "rbac-frontend",
+      "name": "RBAC MLflow Frontend",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "redirectUris": [
+        "https://rbac.local/*",
+        "http://localhost:3000/*"
+      ],
+      "webOrigins": [
+        "https://rbac.local",
+        "http://localhost:3000"
+      ],
+      "protocolMappers": [
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "full.path": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "groups",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "groups": [
+    {
+      "name": "team-alpha",
+      "path": "/team-alpha",
+      "subGroups": [
+        { "name": "readers",   "path": "/team-alpha/readers"   },
+        { "name": "engineers", "path": "/team-alpha/engineers" },
+        { "name": "owners",    "path": "/team-alpha/owners"    }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "alice",
+      "enabled": true,
+      "email": "alice@example.com",
+      "firstName": "Alice",
+      "lastName": "Reader",
+      "emailVerified": true,
+      "credentials": [
+        { "type": "password", "value": "test1234", "temporary": false }
+      ],
+      "groups": ["/team-alpha/readers"]
+    },
+    {
+      "username": "bob",
+      "enabled": true,
+      "email": "bob@example.com",
+      "firstName": "Bob",
+      "lastName": "Engineer",
+      "emailVerified": true,
+      "credentials": [
+        { "type": "password", "value": "test1234", "temporary": false }
+      ],
+      "groups": ["/team-alpha/engineers"]
+    },
+    {
+      "username": "carol",
+      "enabled": true,
+      "email": "carol@example.com",
+      "firstName": "Carol",
+      "lastName": "Owner",
+      "emailVerified": true,
+      "credentials": [
+        { "type": "password", "value": "test1234", "temporary": false }
+      ],
+      "groups": ["/team-alpha/owners"]
+    }
+  ]
+}
