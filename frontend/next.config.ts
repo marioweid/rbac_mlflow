@@ -5,7 +5,8 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        source: "/api/:path*",
+        // Forward all /api/* to the backend EXCEPT /api/auth/* (Auth.js)
+        source: "/api/((?!auth/).*)",
         destination: `${process.env["API_URL"] ?? "http://api:8000"}/:path*`,
       },
     ];

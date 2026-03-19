@@ -11,6 +11,9 @@ importers:
       next:
         specifier: 16.1.6
         version: 16.1.6(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      next-auth:
+        specifier: 5.0.0-beta.25
+        version: 5.0.0-beta.25(next@16.1.6(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)
       react:
         specifier: 19.2.4
         version: 19.2.4
@@ -35,6 +38,20 @@ importers:
         version: 5.9.3
 
 packages:
+
+  '@auth/core@0.37.2':
+    resolution: {integrity: sha512-kUvzyvkcd6h1vpeMAojK2y7+PAV5H+0Cc9+ZlKYDFhDY31AlvsB+GW5vNO4qE3Y07KeQgvNO9U0QUx/fN62kBw==}
+    peerDependencies:
+      '@simplewebauthn/browser': ^9.0.1
+      '@simplewebauthn/server': ^9.0.2
+      nodemailer: ^6.8.0
+    peerDependenciesMeta:
+      '@simplewebauthn/browser':
+        optional: true
+      '@simplewebauthn/server':
+        optional: true
+      nodemailer:
+        optional: true
 
   '@emnapi/runtime@1.9.0':
     resolution: {integrity: sha512-QN75eB0IH2ywSpRpNddCRfQIhmJYBCJ1x5Lb3IscKAL8bMnVAKnRg8dCoXbHzVLLH7P38N2Z3mtulB7W0J0FKw==}
@@ -369,8 +386,14 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@panva/hkdf@1.2.1':
+    resolution: {integrity: sha512-6oclG6Y3PiDFcoyk8srjLfVKyMfVCKJ27JwNPViuXziFpmdz+MZnZN/aKY0JGXgYuO/VghU0jcOAZgWXZ1Dmrw==}
+
   '@swc/helpers@0.5.15':
     resolution: {integrity: sha512-JQ5TuMi45Owi4/BIMAJBoSQoOJu12oOk/gADqlcUL9JEdHB8vyjUSsxqeNXnmXHjYKMi2WcYtezGEEhqUI/E2g==}
+
+  '@types/cookie@0.6.0':
+    resolution: {integrity: sha512-4Kh9a6B2bQciAhf7FSuMRRkUWecJgJu9nPnx3yzpsfXX/c50REIqpHY4C82bXP90qrLtXtkDxTZosYO3UpOwlA==}
 
   '@types/node@25.5.0':
     resolution: {integrity: sha512-jp2P3tQMSxWugkCUKLRPVUpGaL5MVFwF8RDuSRztfwgN1wmqJeMSbKlnEtQqU8UrhTmzEmZdu2I6v2dpp7XIxw==}
@@ -394,6 +417,10 @@ packages:
   client-only@0.0.1:
     resolution: {integrity: sha512-IV3Ou0jSMzZrd3pZ48nLkT9DA7Ag1pnPzaiQhpW7c3RbcqqzvzzVu+L8gfqMp/8IM2MQtSiqaCxrrcfu8I8rMA==}
 
+  cookie@0.7.1:
+    resolution: {integrity: sha512-6DnInpx7SJ2AK3+CTUE/ZM0vWTUboZCegxhC2xiIydHR9jNuTAASBrfEpHhiGOZw/nX51bHt6YQl8jsGo4y/0w==}
+    engines: {node: '>= 0.6'}
+
   csstype@3.2.3:
     resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
 
@@ -401,10 +428,29 @@ packages:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
 
+  jose@5.10.0:
+    resolution: {integrity: sha512-s+3Al/p9g32Iq+oqXxkW//7jk2Vig6FF1CFqzVXoTUXt2qz89YWbL+OwS17NFYEvxC35n0FKeGO2LGYSxeM2Gg==}
+
   nanoid@3.3.11:
     resolution: {integrity: sha512-N8SpfPUnUp1bK+PMYW8qSWdl9U+wwNWI4QKxOYDy9JAro3WMX7p2OeVRF9v+347pnakNevPmiHhNmZ2HbFA76w==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
+
+  next-auth@5.0.0-beta.25:
+    resolution: {integrity: sha512-2dJJw1sHQl2qxCrRk+KTQbeH+izFbGFPuJj5eGgBZFYyiYYtvlrBeUw1E/OJJxTRjuxbSYGnCTkUIRsIIW0bog==}
+    peerDependencies:
+      '@simplewebauthn/browser': ^9.0.1
+      '@simplewebauthn/server': ^9.0.2
+      next: ^14.0.0-0 || ^15.0.0-0
+      nodemailer: ^6.6.5
+      react: ^18.2.0 || ^19.0.0-0
+    peerDependenciesMeta:
+      '@simplewebauthn/browser':
+        optional: true
+      '@simplewebauthn/server':
+        optional: true
+      nodemailer:
+        optional: true
 
   next@16.1.6:
     resolution: {integrity: sha512-hkyRkcu5x/41KoqnROkfTm2pZVbKxvbZRuNvKXLRXxs3VfyO0WhY50TQS40EuKO9SW3rBj/sF3WbVwDACeMZyw==}
@@ -427,6 +473,9 @@ packages:
       sass:
         optional: true
 
+  oauth4webapi@3.8.5:
+    resolution: {integrity: sha512-A8jmyUckVhRJj5lspguklcl90Ydqk61H3dcU0oLhH3Yv13KpAliKTt5hknpGGPZSSfOwGyraNEFmofDYH+1kSg==}
+
   oxlint@1.55.0:
     resolution: {integrity: sha512-T+FjepiyWpaZMhekqRpH8Z3I4vNM610p6w+Vjfqgj5TZUxHXl7N8N5IPvmOU8U4XdTRxqtNNTh9Y4hLtr7yvFg==}
     engines: {node: ^20.19.0 || >=22.12.0}
@@ -443,6 +492,17 @@ packages:
   postcss@8.4.31:
     resolution: {integrity: sha512-PS08Iboia9mts/2ygV3eLpY5ghnUcfLV/EXTOW1E2qYxJKGGBUtNjN76FYHnMs36RmARn41bC0AZmn+rR0OVpQ==}
     engines: {node: ^10 || ^12 || >=14}
+
+  preact-render-to-string@5.2.3:
+    resolution: {integrity: sha512-aPDxUn5o3GhWdtJtW0svRC2SS/l8D9MAgo2+AWml+BhDImb27ALf04Q2d+AHqUUOc6RdSXFIBVa2gxzgMKgtZA==}
+    peerDependencies:
+      preact: '>=10'
+
+  preact@10.11.3:
+    resolution: {integrity: sha512-eY93IVpod/zG3uMF22Unl8h9KkrcKIRs2EGar8hwLZZDU1lkjph303V9HZBwufh2s736U6VXuhD109LYqPoffg==}
+
+  pretty-format@3.8.0:
+    resolution: {integrity: sha512-WuxUnVtlWL1OfZFQFuqvnvs6MiAGk9UNsBostyBOB0Is9wb5uRESevA6rnl/rkksXaGX3GzZhPup5d6Vp1nFew==}
 
   react-dom@19.2.4:
     resolution: {integrity: sha512-AXJdLo8kgMbimY95O2aKQqsz2iWi9jMgKJhRBAxECE4IFxfcazB2LmzloIoibJI3C12IlY20+KFaLv+71bUJeQ==}
@@ -494,6 +554,16 @@ packages:
     resolution: {integrity: sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==}
 
 snapshots:
+
+  '@auth/core@0.37.2':
+    dependencies:
+      '@panva/hkdf': 1.2.1
+      '@types/cookie': 0.6.0
+      cookie: 0.7.1
+      jose: 5.10.0
+      oauth4webapi: 3.8.5
+      preact: 10.11.3
+      preact-render-to-string: 5.2.3(preact@10.11.3)
 
   '@emnapi/runtime@1.9.0':
     dependencies:
@@ -680,9 +750,13 @@ snapshots:
   '@oxlint/binding-win32-x64-msvc@1.55.0':
     optional: true
 
+  '@panva/hkdf@1.2.1': {}
+
   '@swc/helpers@0.5.15':
     dependencies:
       tslib: 2.8.1
+
+  '@types/cookie@0.6.0': {}
 
   '@types/node@25.5.0':
     dependencies:
@@ -702,12 +776,22 @@ snapshots:
 
   client-only@0.0.1: {}
 
+  cookie@0.7.1: {}
+
   csstype@3.2.3: {}
 
   detect-libc@2.1.2:
     optional: true
 
+  jose@5.10.0: {}
+
   nanoid@3.3.11: {}
+
+  next-auth@5.0.0-beta.25(next@16.1.6(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4):
+    dependencies:
+      '@auth/core': 0.37.2
+      next: 16.1.6(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react: 19.2.4
 
   next@16.1.6(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
     dependencies:
@@ -732,6 +816,8 @@ snapshots:
     transitivePeerDependencies:
       - '@babel/core'
       - babel-plugin-macros
+
+  oauth4webapi@3.8.5: {}
 
   oxlint@1.55.0:
     optionalDependencies:
@@ -762,6 +848,15 @@ snapshots:
       nanoid: 3.3.11
       picocolors: 1.1.1
       source-map-js: 1.2.1
+
+  preact-render-to-string@5.2.3(preact@10.11.3):
+    dependencies:
+      preact: 10.11.3
+      pretty-format: 3.8.0
+
+  preact@10.11.3: {}
+
+  pretty-format@3.8.0: {}
 
   react-dom@19.2.4(react@19.2.4):
     dependencies:
