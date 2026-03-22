@@ -6,6 +6,9 @@ from dotenv import load_dotenv, find_dotenv
 
 load_dotenv(find_dotenv())
 
+# Override S3 endpoint: minio:9000 is Docker-internal; use localhost when running outside the stack
+os.environ["MLFLOW_S3_ENDPOINT_URL"] = "http://localhost:9000"
+
 os.environ["MLFLOW_TRACKING_SERVER_CERT_PATH"] = os.path.join(
     os.path.dirname(__file__), "..", "certs", "cert.pem"
 )
