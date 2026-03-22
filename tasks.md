@@ -125,11 +125,73 @@ Goal: readers can see their team's experiments and runs via the frontend.
 
 ---
 
-## Phase 5 – Dataset Management
+## Phase 5 – Golden Sample Bootstrap & Regression Tests
+
+Goal: after `docker compose up` and a single seed command, a logged-in
+team-alpha user (e.g. Carol) immediately sees a `GoldenSample` experiment
+with a finished baseline run on the dashboard — no manual setup required.
+
+**Bootstrap script** (`scripts/seed_golden_sample.py`):
+
+- [ ] Create (or reuse) a `GoldenSample` experiment in MLflow
+- [ ] Upload a fixed JSONL evaluation dataset to MinIO/S3 with known
+      question/expected-answer pairs (5-10 rows covering: correct answer,
+      refusal, multilingual, edge-case empty input)
+- [ ] Run `mlflow.genai.evaluate` against the dataset with deterministic
+      scorer config (temperature 0, fixed model)
+- [ ] Link the experiment to `team-alpha` in the RBAC database
+      (`team_experiments` row) so that all team-alpha members (alice/reader,
+      bob/engineer, carol/owner) see it on the dashboard immediately after
+      login
+- [ ] Create a second team `team-beta` with its own Keycloak group
+      (`/team-beta/readers`, `/team-beta/engineers`, `/team-beta/owners`)
+      and at least one test user (e.g. dave/reader) — add the group and
+      user to `keycloak/realm-export.json`
+- [ ] Bootstrap `team-beta` group-role mappings alongside `team-alpha`
+- [ ] Do NOT link `GoldenSample` to `team-beta` — a `team-beta` user
+      must see an empty dashboard, verifying RBAC isolation
+- [ ] Script is idempotent: re-running skips if the experiment and its
+      baseline run already exist
+- [ ] Integrate into `docker compose` workflow: add a `seed` service (or
+      document `make seed`) that runs after the stack is healthy, so a
+      fresh `docker compose up` + seed gives a fully populated dev
+      environment
+
+**Golden dataset fixture** (`tests/fixtures/golden_sample.jsonl`):
+
+- [ ] Commit the JSONL file so tests can load it without network access
+- [ ] Include fields: `inputs.question`, `expectations.expected_response`
+
+**Regression tests** (`tests/test_golden_sample.py`):
+
+- [ ] Verify the golden dataset can be parsed and contains the expected
+      number of rows and required fields
+- [ ] Verify the baseline run exists in MLflow and has status `FINISHED`
+- [ ] Verify expected scorer metrics are present on the baseline run
+      (e.g. `correctness/mean`, `is_english/mean`)
+- [ ] Verify metric values are within acceptable thresholds compared to
+      the baseline (flag regressions if a metric drops below baseline - tolerance)
+- [ ] Verify the experiment is visible on the dashboard API
+      (`GET /experiments` returns `GoldenSample` for a team-alpha user)
+- [ ] Verify RBAC isolation: a `team-beta` user (e.g. dave) calling
+      `GET /experiments` gets an empty list — no access to team-alpha's
+      `GoldenSample` experiment
+
+**CI integration:**
+
+- [ ] Add a `make golden-test` target (or equivalent) that runs the seed
+      script followed by the regression tests
+- [ ] Document in `CONTRIBUTING.md` how to re-baseline after intentional
+      changes (re-run seed script with `--force` flag)
+
+---
+
+## Phase 6 – Dataset Management
 
 Goal: engineers and owners can view and edit evaluation datasets.
 
 **API:**
+
 - [ ] `GET /datasets` — list datasets linked to user's teams (from MLflow
       dataset registry), requires `dataset.read`
 - [ ] `GET /datasets/{id}` — fetch dataset metadata + download file from
@@ -143,6 +205,7 @@ Goal: engineers and owners can view and edit evaluation datasets.
 - [ ] Audit log entry written for every write operation
 
 **Frontend:**
+
 - [ ] `/datasets` page: dataset list with name, version, row count, last
       modified
 - [ ] `/datasets/[id]` page: table view of rows (question, expected answer,
@@ -152,13 +215,14 @@ Goal: engineers and owners can view and edit evaluation datasets.
 - [ ] `/datasets/new` page: upload JSONL or create rows manually
 
 **Tests:**
+
 - [ ] Reader can view datasets but cannot call write endpoints (403)
 - [ ] Engineer can create and update datasets
 - [ ] New version is registered in MLflow after PUT
 
 ---
 
-## Phase 6 – Trigger Evaluation Runs
+## Phase 7 – Trigger Evaluation Runs
 
 Goal: engineers can start an evaluation run from the UI against a selected
 dataset.
@@ -176,7 +240,7 @@ dataset.
 
 ---
 
-## Phase 7 – Polish & Production Readiness
+## Phase 8 – Polish & Production Readiness
 
 Goal: safe to deploy; observable; easy to hand off.
 
