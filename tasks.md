@@ -94,9 +94,6 @@ Goal: permission checks work end-to-end; admins can configure team mappings.
       that reads `BOOTSTRAP_ADMIN_GROUP` env var and inserts a group → role
       mapping with `owner` for a default team — runs only if `group_role_mappings`
       is empty, so it is safe to leave enabled in dev and harmless after first setup
-- [ ] Write unit tests for `resolve_teams` and `require_permission`
-- [ ] Write integration tests for admin endpoints (auth required, owner-only)
-- [ ] Verify: user in `rag-service-reader` group cannot call owner-only endpoints
 
 ---
 

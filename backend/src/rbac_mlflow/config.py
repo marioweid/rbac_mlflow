@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://rbac:changeme@postgres:5432/rbac_db"
     mlflow_tracking_uri: str = "http://mlflow:5000"
 
+    bootstrap_admin_group: str = "/team-alpha/owners"
+    bootstrap_team_name: str = "team-alpha"
+
     model_config = {"env_file": ".env", "extra": "ignore"}
 
 

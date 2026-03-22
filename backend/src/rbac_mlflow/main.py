@@ -1,12 +1,31 @@
 import os
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
+import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from rbac_mlflow.admin.router import router as admin_router
 from rbac_mlflow.auth.middleware import AuthMiddleware
 from rbac_mlflow.auth.router import router as auth_router
+from rbac_mlflow.bootstrap import run_bootstrap
+from rbac_mlflow.config import settings
+from rbac_mlflow.experiments.router import router as experiments_router
 
-app = FastAPI(title="rbac-mlflow API", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
+    await run_bootstrap()
+    _app.state.mlflow_client = httpx.AsyncClient(
+        base_url=settings.mlflow_tracking_uri,
+        timeout=30.0,
+    )
+    yield
+    await _app.state.mlflow_client.aclose()
+
+
+app = FastAPI(title="rbac-mlflow API", version="0.1.0", lifespan=lifespan)
 
 _frontend_origins = [
     f"https://{os.getenv('TRAEFIK_DOMAIN', 'rbac.local')}",
@@ -23,6 +42,8 @@ app.add_middleware(
 app.add_middleware(AuthMiddleware)
 
 app.include_router(auth_router)
+app.include_router(admin_router)
+app.include_router(experiments_router)
 
 
 @app.get("/health")
