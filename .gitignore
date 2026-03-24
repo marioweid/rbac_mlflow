@@ -3,8 +3,9 @@ certs/*.pem
 certs/*.crt
 certs/*.key
 
-# Env
+# Env and local dev credentials
 .env
+users.md
 
 # Python
 __pycache__/

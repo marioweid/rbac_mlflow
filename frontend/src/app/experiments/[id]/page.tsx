@@ -1,8 +1,17 @@
 import Link from "next/link";
 
+import { auth } from "@/auth";
 import { apiFetch } from "@/lib/api";
 import { formatDuration, formatTimestamp, statusColor } from "@/lib/format";
 import type { ExperimentDetail, RunListResponse } from "@/lib/types";
+
+import { RunEvaluationButton } from "./RunEvaluationButton";
+
+function hasStartRunAccess(groups: string[] | undefined, teamName: string): boolean {
+  return (groups ?? []).some(
+    (g) => g === `/${teamName}/engineers` || g === `/${teamName}/owners`,
+  );
+}
 
 async function getExperiment(id: string): Promise<ExperimentDetail | null> {
   const res = await apiFetch(`/experiments/${id}`);
@@ -32,9 +41,10 @@ export default async function ExperimentPage({
   const { order_by: orderBy } = await searchParams;
   const currentOrder = orderBy ?? "start_time DESC";
 
-  const [experiment, runsData] = await Promise.all([
+  const [experiment, runsData, session] = await Promise.all([
     getExperiment(id),
     getRuns(id, currentOrder),
+    auth(),
   ]);
 
   if (experiment === null) {
@@ -49,6 +59,7 @@ export default async function ExperimentPage({
   }
 
   const runs = runsData?.runs ?? [];
+  const canStartRun = hasStartRunAccess(session?.groups, experiment.team_name);
 
   return (
     <main className="max-w-6xl mx-auto p-6">
@@ -72,7 +83,15 @@ export default async function ExperimentPage({
         </div>
       </div>
 
-      <h2 className="text-lg font-semibold mb-3">Runs</h2>
+      <div className="flex justify-between items-center mb-3">
+        <h2 className="text-lg font-semibold">Runs</h2>
+        {canStartRun && (
+          <RunEvaluationButton
+            experimentId={id}
+            teamName={experiment.team_name}
+          />
+        )}
+      </div>
 
       {runs.length === 0 ? (
         <p className="text-gray-500">No runs found for this experiment.</p>

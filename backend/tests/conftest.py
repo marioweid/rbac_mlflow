@@ -40,6 +40,16 @@ def carol_claims() -> TokenClaims:
 
 
 @pytest.fixture
+def dave_claims() -> TokenClaims:
+    """Dave: reader in team-beta (no access to team-alpha resources)."""
+    return TokenClaims(
+        sub="dave-id",
+        email="dave@example.com",
+        groups=["/team-beta/readers"],
+    )
+
+
+@pytest.fixture
 def alice_team_roles() -> list[TeamRole]:
     return [TeamRole(team_id=TEAM_ALPHA_ID, team_name="team-alpha", role="reader")]
 
@@ -52,3 +62,17 @@ def bob_team_roles() -> list[TeamRole]:
 @pytest.fixture
 def carol_team_roles() -> list[TeamRole]:
     return [TeamRole(team_id=TEAM_ALPHA_ID, team_name="team-alpha", role="owner")]
+
+
+@pytest.fixture
+def dave_team_roles() -> list[TeamRole]:
+    return [TeamRole(team_id=TEAM_BETA_ID, team_name="team-beta", role="reader")]
+
+
+def pytest_addoption(parser: pytest.Parser) -> None:
+    parser.addoption(
+        "--mlflow-uri",
+        action="store",
+        default=None,
+        help="Live MLflow URI for integration tests (e.g. http://localhost:5000)",
+    )

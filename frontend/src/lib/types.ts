@@ -66,3 +66,50 @@ export interface RunListResponse {
   runs: RunSummary[];
   next_page_token: string | null;
 }
+
+export interface DatasetVersionInfo {
+  version: number;
+  row_count: number;
+  created_by: string;
+  created_at: string;
+}
+
+export interface DatasetSummary {
+  id: string;
+  name: string;
+  team_name: string;
+  description: string;
+  latest_version: number;
+  row_count: number;
+  updated_at: string;
+  is_active: boolean;
+}
+
+export interface DatasetDetail {
+  id: string;
+  name: string;
+  team_name: string;
+  description: string;
+  versions: DatasetVersionInfo[];
+  rows: Record<string, unknown>[];
+}
+
+export interface DatasetResponse {
+  id: string;
+  name: string;
+  version: number;
+  row_count: number;
+}
+
+export interface StartRunRequest {
+  dataset_id: string;
+  dataset_version: number | null;
+  run_name: string | null;
+}
+
+export interface StartRunResponse {
+  run_id: string;
+  experiment_id: string;
+  run_name: string;
+  status: string;
+}

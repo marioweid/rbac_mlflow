@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import "./globals.css";
 import { Providers } from "./providers";
 
@@ -15,7 +16,23 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <Providers>{children}</Providers>
+        <Providers>
+          <nav className="border-b border-gray-200 bg-white px-6 py-3 flex gap-6 text-sm">
+            <Link
+              href="/dashboard"
+              className="text-gray-700 hover:text-blue-600 font-medium"
+            >
+              Experiments
+            </Link>
+            <Link
+              href="/datasets"
+              className="text-gray-700 hover:text-blue-600 font-medium"
+            >
+              Datasets
+            </Link>
+          </nav>
+          {children}
+        </Providers>
       </body>
     </html>
   );

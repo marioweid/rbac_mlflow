@@ -57,6 +57,15 @@
         { "name": "engineers", "path": "/team-alpha/engineers" },
         { "name": "owners",    "path": "/team-alpha/owners"    }
       ]
+    },
+    {
+      "name": "team-beta",
+      "path": "/team-beta",
+      "subGroups": [
+        { "name": "readers",   "path": "/team-beta/readers"   },
+        { "name": "engineers", "path": "/team-beta/engineers" },
+        { "name": "owners",    "path": "/team-beta/owners"    }
+      ]
     }
   ],
   "users": [
@@ -95,6 +104,18 @@
         { "type": "password", "value": "test1234", "temporary": false }
       ],
       "groups": ["/team-alpha/owners"]
+    },
+    {
+      "username": "dave",
+      "enabled": true,
+      "email": "dave@example.com",
+      "firstName": "Dave",
+      "lastName": "Reader",
+      "emailVerified": true,
+      "credentials": [
+        { "type": "password", "value": "test1234", "temporary": false }
+      ],
+      "groups": ["/team-beta/readers"]
     }
   ]
 }

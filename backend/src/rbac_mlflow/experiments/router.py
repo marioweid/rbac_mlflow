@@ -4,12 +4,17 @@ import httpx
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from rbac_mlflow.auth.dependencies import get_current_user
+from rbac_mlflow.auth.providers.base import TokenClaims
 from rbac_mlflow.db import get_db
+from rbac_mlflow.experiments.evaluation import run_evaluation
 from rbac_mlflow.experiments.schemas import (
     ExperimentDetail,
     ExperimentSummary,
     RunDetail,
     RunListResponse,
+    StartRunRequest,
+    StartRunResponse,
 )
 from rbac_mlflow.experiments.service import (
     get_experiment_detail,
@@ -24,6 +29,8 @@ from rbac_mlflow.rbac.dependencies import (
     require_experiment_permission,
 )
 from rbac_mlflow.rbac.schemas import TeamRole
+from rbac_mlflow.rbac.service import log_audit_event
+from rbac_mlflow.s3_client import S3Client, get_s3_client
 
 router = APIRouter(prefix="/experiments", tags=["experiments"])
 
@@ -72,3 +79,35 @@ async def get_run(
 ) -> RunDetail:
     """Get full run detail."""
     return await get_run_detail(mlflow, run_id, experiment_id)
+
+
+@router.post("/{experiment_id}/runs", response_model=StartRunResponse, status_code=201)
+async def start_run(
+    experiment_id: str,
+    body: StartRunRequest,
+    team_id: uuid.UUID = Depends(require_experiment_permission(Permission.RUN_START)),
+    db: AsyncSession = Depends(get_db),
+    mlflow: httpx.AsyncClient = Depends(get_mlflow_client),
+    s3: S3Client = Depends(get_s3_client),
+    user: TokenClaims = Depends(get_current_user),
+) -> StartRunResponse:
+    """Start an evaluation run against a dataset. Requires engineer or owner role."""
+    result = await run_evaluation(
+        mlflow=mlflow,
+        s3=s3,
+        db=db,
+        experiment_id=experiment_id,
+        dataset_id=body.dataset_id,
+        dataset_version=body.dataset_version,
+        run_name=body.run_name,
+        user_sub=user.sub,
+        experiment_team_id=team_id,
+    )
+    await log_audit_event(
+        db,
+        user_sub=user.sub,
+        team_id=team_id,
+        action="run.start",
+        resource=f"experiment={experiment_id} run={result.run_id}",
+    )
+    return result

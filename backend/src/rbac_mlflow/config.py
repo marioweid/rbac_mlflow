@@ -10,6 +10,12 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://rbac:changeme@postgres:5432/rbac_db"
     mlflow_tracking_uri: str = "http://mlflow:5000"
 
+    s3_endpoint_url: str | None = None  # None → real AWS S3; set to MinIO URL for local dev
+    s3_bucket: str = "mlflow-artifacts"
+    s3_region: str = "us-east-1"
+    aws_access_key_id: str = "minioadmin"
+    aws_secret_access_key: str = "minioadmin"
+
     bootstrap_admin_group: str = "/team-alpha/owners"
     bootstrap_team_name: str = "team-alpha"
 

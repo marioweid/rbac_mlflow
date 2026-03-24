@@ -1,3 +1,5 @@
+import uuid
+
 from pydantic import BaseModel
 
 
@@ -76,3 +78,20 @@ class RunDetail(BaseModel):
 class RunListResponse(BaseModel):
     runs: list[RunSummary]
     next_page_token: str | None = None
+
+
+class StartRunRequest(BaseModel):
+    """Body for POST /experiments/{id}/runs."""
+
+    dataset_id: uuid.UUID
+    dataset_version: int | None = None  # None = latest version
+    run_name: str | None = None  # auto-generated if omitted
+
+
+class StartRunResponse(BaseModel):
+    """Response for POST /experiments/{id}/runs."""
+
+    run_id: str
+    experiment_id: str
+    run_name: str
+    status: str

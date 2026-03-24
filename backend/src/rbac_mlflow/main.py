@@ -11,6 +11,7 @@ from rbac_mlflow.auth.middleware import AuthMiddleware
 from rbac_mlflow.auth.router import router as auth_router
 from rbac_mlflow.bootstrap import run_bootstrap
 from rbac_mlflow.config import settings
+from rbac_mlflow.datasets.router import router as datasets_router
 from rbac_mlflow.experiments.router import router as experiments_router
 
 
@@ -44,6 +45,7 @@ app.add_middleware(AuthMiddleware)
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(experiments_router)
+app.include_router(datasets_router)
 
 
 @app.get("/health")
