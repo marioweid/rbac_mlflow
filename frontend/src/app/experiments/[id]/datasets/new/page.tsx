@@ -9,6 +9,12 @@ import { useSession } from "next-auth/react";
 import { clientApiFetch } from "@/lib/client-api";
 import type { DatasetResponse } from "@/lib/types";
 
+import {
+  DatasetRowsTable,
+  toApiRows,
+} from "../DatasetRowsTable";
+import type { DatasetRow } from "../DatasetRowsTable";
+
 export default function NewDatasetPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -17,7 +23,7 @@ export default function NewDatasetPage() {
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [rowsJson, setRowsJson] = useState("[]");
+  const [rows, setRows] = useState<DatasetRow[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,36 +32,37 @@ export default function NewDatasetPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const rows = JSON.parse(rowsJson) as unknown;
-      if (!Array.isArray(rows)) {
-        setError("Rows must be a JSON array.");
-        return;
-      }
       const res = await clientApiFetch(
         `/experiments/${experimentId}/datasets`,
         session?.accessToken,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, description, rows }),
+          body: JSON.stringify({ name, description, rows: toApiRows(rows) }),
         },
       );
       if (!res.ok) {
-        const body = (await res.json()) as { detail?: string };
-        setError(body.detail ?? `Error ${res.status}`);
+        let message = `Error ${res.status}`;
+        try {
+          const body = (await res.json()) as { detail?: string };
+          message = body.detail ?? message;
+        } catch {
+          // response body was not JSON
+        }
+        setError(message);
         return;
       }
       const created = (await res.json()) as DatasetResponse;
       router.push(`/experiments/${experimentId}/datasets/${created.id}`);
     } catch (e) {
-      setError(e instanceof SyntaxError ? "Invalid JSON in rows." : String(e));
+      setError(String(e));
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <main className="max-w-2xl mx-auto p-6">
+    <main className="max-w-4xl mx-auto p-6">
       <Link
         href={`/experiments/${experimentId}`}
         className="text-sm text-blue-600 hover:underline mb-4 block"
@@ -91,17 +98,8 @@ export default function NewDatasetPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">
-            Rows{" "}
-            <span className="text-gray-400 font-normal">(JSON array)</span>
-          </label>
-          <textarea
-            value={rowsJson}
-            onChange={(e) => setRowsJson(e.target.value)}
-            rows={10}
-            spellCheck={false}
-            className="w-full font-mono text-sm border border-gray-200 rounded px-3 py-2 focus:outline-none focus:border-blue-400 resize-y"
-          />
+          <label className="block text-sm font-medium mb-2">Rows</label>
+          <DatasetRowsTable rows={rows} onChange={setRows} readOnly={false} />
         </div>
 
         {error !== null && <p className="text-red-600 text-sm">{error}</p>}

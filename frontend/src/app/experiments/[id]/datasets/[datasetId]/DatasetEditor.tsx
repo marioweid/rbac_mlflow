@@ -8,6 +8,13 @@ import { useSession } from "next-auth/react";
 import { clientApiFetch } from "@/lib/client-api";
 import type { DatasetDetail } from "@/lib/types";
 
+import {
+  DatasetRowsTable,
+  toApiRows,
+  toTableRows,
+} from "../DatasetRowsTable";
+import type { DatasetRow } from "../DatasetRowsTable";
+
 interface Props {
   dataset: DatasetDetail;
   experimentId: string;
@@ -18,7 +25,7 @@ export function DatasetEditor({ dataset, experimentId, canWrite }: Props) {
   const router = useRouter();
   const { data: session } = useSession();
 
-  const [rows, setRows] = useState<string>(JSON.stringify(dataset.rows, null, 2));
+  const [rows, setRows] = useState<DatasetRow[]>(toTableRows(dataset.rows));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,18 +33,13 @@ export function DatasetEditor({ dataset, experimentId, canWrite }: Props) {
     setSaving(true);
     setError(null);
     try {
-      const parsed = JSON.parse(rows) as unknown;
-      if (!Array.isArray(parsed)) {
-        setError("Rows must be a JSON array.");
-        return;
-      }
       const res = await clientApiFetch(
         `/experiments/${experimentId}/datasets/${dataset.id}`,
         session?.accessToken,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ rows: parsed }),
+          body: JSON.stringify({ rows: toApiRows(rows) }),
         },
       );
       if (!res.ok) {
@@ -53,7 +55,7 @@ export function DatasetEditor({ dataset, experimentId, canWrite }: Props) {
       }
       router.refresh();
     } catch (e) {
-      setError(e instanceof SyntaxError ? "Invalid JSON in editor." : String(e));
+      setError(String(e));
     } finally {
       setSaving(false);
     }
@@ -76,13 +78,7 @@ export function DatasetEditor({ dataset, experimentId, canWrite }: Props) {
 
       {error !== null && <p className="text-red-600 text-sm mb-2">{error}</p>}
 
-      <textarea
-        value={rows}
-        onChange={(e) => setRows(e.target.value)}
-        readOnly={!canWrite}
-        className="w-full h-[60vh] font-mono text-sm border border-gray-200 rounded p-3 resize-y focus:outline-none focus:border-blue-400"
-        spellCheck={false}
-      />
+      <DatasetRowsTable rows={rows} onChange={setRows} readOnly={!canWrite} />
     </div>
   );
 }
