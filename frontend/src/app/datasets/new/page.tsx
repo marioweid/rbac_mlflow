@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useSession } from "next-auth/react";
 
@@ -26,7 +26,13 @@ export default function NewDatasetPage() {
   const writeTeams = writeTeamsFromGroups(session?.groups ?? []);
 
   const [name, setName] = useState("");
-  const [teamName, setTeamName] = useState(writeTeams[0] ?? "");
+  const [teamName, setTeamName] = useState("");
+
+  useEffect(() => {
+    if (!teamName && writeTeams.length > 0) {
+      setTeamName(writeTeams[0]!);
+    }
+  }, [writeTeams, teamName]);
   const [description, setDescription] = useState("");
   const [rowsJson, setRowsJson] = useState("[]");
   const [submitting, setSubmitting] = useState(false);
