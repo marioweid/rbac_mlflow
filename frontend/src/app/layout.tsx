@@ -25,12 +25,6 @@ export default function RootLayout({
             >
               Experiments
             </Link>
-            <Link
-              href="/datasets"
-              className="text-gray-700 hover:text-blue-600 font-medium"
-            >
-              Datasets
-            </Link>
             <span className="ml-auto">
               <SignOutButton />
             </span>

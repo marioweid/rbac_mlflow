@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from rbac_mlflow.auth.dependencies import get_current_user
 from rbac_mlflow.auth.providers.base import TokenClaims
 from rbac_mlflow.db import get_db
-from rbac_mlflow.models import Dataset, TeamExperiment
+from rbac_mlflow.models import TeamExperiment
 from rbac_mlflow.rbac.constants import Permission
 from rbac_mlflow.rbac.schemas import TeamRole
 from rbac_mlflow.rbac.service import check_permission, resolve_teams
@@ -88,43 +88,6 @@ def require_experiment_permission(permission: Permission) -> Callable:
             raise HTTPException(
                 status_code=403,
                 detail=f"Permission '{permission}' denied for experiment {experiment_id}",
-            )
-        return team_id
-
-    return dependency
-
-
-def require_dataset_permission(permission: Permission) -> Callable:
-    """Factory returning a dependency that resolves dataset_id → team_id, then checks permission.
-
-    Returns the resolved team_id so route handlers can use it.
-
-    Usage:
-        @router.put("/datasets/{dataset_id}")
-        async def update_dataset(
-            dataset_id: uuid.UUID,
-            team_id: uuid.UUID = Depends(
-                require_dataset_permission(Permission.DATASET_WRITE)
-            ),
-        ):
-            ...
-    """
-
-    async def dependency(
-        dataset_id: uuid.UUID,
-        team_roles: list[TeamRole] = Depends(get_team_roles),
-        db: AsyncSession = Depends(get_db),
-    ) -> uuid.UUID:
-        stmt = select(Dataset.team_id).where(Dataset.id == dataset_id)
-        result = await db.execute(stmt)
-        row = result.first()
-        if row is None:
-            raise HTTPException(status_code=404, detail=f"Dataset '{dataset_id}' not found")
-        team_id = row.team_id
-        if not check_permission(team_roles, permission, team_id):
-            raise HTTPException(
-                status_code=403,
-                detail=f"Permission '{permission}' denied for dataset {dataset_id}",
             )
         return team_id
 

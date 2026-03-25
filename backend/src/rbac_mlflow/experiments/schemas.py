@@ -1,5 +1,3 @@
-import uuid
-
 from pydantic import BaseModel
 
 
@@ -83,8 +81,7 @@ class RunListResponse(BaseModel):
 class StartRunRequest(BaseModel):
     """Body for POST /experiments/{id}/runs."""
 
-    dataset_id: uuid.UUID
-    dataset_version: int | None = None  # None = latest version
+    dataset_id: str  # MLflow dataset_id (e.g. "d-1cafa29844fe4a24a60dc53189b6eccb")
     run_name: str | None = None  # auto-generated if omitted
 
 

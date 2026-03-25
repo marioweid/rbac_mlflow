@@ -289,8 +289,8 @@ class TestGoldenSampleIntegration:
         return uri
 
     def _get_experiment(self) -> dict:
-        import urllib.request
         import urllib.error
+        import urllib.request
 
         url = f"{self._uri}/api/2.0/mlflow/experiments/get-by-name?experiment_name=GoldenSample"
         try:
@@ -300,8 +300,8 @@ class TestGoldenSampleIntegration:
             pytest.fail(f"Could not fetch GoldenSample experiment: {exc}")
 
     def _search_baseline_run(self, experiment_id: str) -> dict | None:
-        import urllib.request
         import json as _json
+        import urllib.request
 
         url = f"{self._uri}/api/2.0/mlflow/runs/search"
         body = _json.dumps({

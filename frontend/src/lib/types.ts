@@ -67,43 +67,32 @@ export interface RunListResponse {
   next_page_token: string | null;
 }
 
-export interface DatasetVersionInfo {
-  version: number;
-  row_count: number;
-  created_by: string;
-  created_at: string;
-}
-
 export interface DatasetSummary {
-  id: string;
+  id: string; // MLflow dataset_id
   name: string;
-  team_name: string;
+  experiment_id: string;
   description: string;
-  latest_version: number;
   row_count: number;
   updated_at: string;
-  is_active: boolean;
 }
 
 export interface DatasetDetail {
-  id: string;
+  id: string; // MLflow dataset_id
   name: string;
-  team_name: string;
+  experiment_id: string;
   description: string;
-  versions: DatasetVersionInfo[];
   rows: Record<string, unknown>[];
 }
 
 export interface DatasetResponse {
-  id: string;
+  id: string; // MLflow dataset_id
   name: string;
-  version: number;
+  experiment_id: string;
   row_count: number;
 }
 
 export interface StartRunRequest {
-  dataset_id: string;
-  dataset_version: number | null;
+  dataset_id: string; // MLflow dataset_id
   run_name: string | null;
 }
 

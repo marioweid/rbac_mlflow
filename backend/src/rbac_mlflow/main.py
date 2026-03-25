@@ -45,7 +45,9 @@ app.add_middleware(AuthMiddleware)
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(experiments_router)
-app.include_router(datasets_router)
+# Datasets are nested under /experiments — include with /experiments prefix so
+# final paths are /experiments/{experiment_id}/datasets/...
+app.include_router(datasets_router, prefix="/experiments")
 
 
 @app.get("/health")

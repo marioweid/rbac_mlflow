@@ -1,42 +1,28 @@
-import uuid
 from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel
 
 
-class DatasetVersionInfo(BaseModel):
-    version: int
-    row_count: int
-    created_by: str
-    created_at: datetime
-
-    model_config = {"from_attributes": True}
-
-
 class DatasetSummary(BaseModel):
-    id: uuid.UUID
+    id: str  # MLflow dataset_id (e.g. "d-1cafa29844fe4a24a60dc53189b6eccb")
     name: str
-    team_name: str
+    experiment_id: str
     description: str
-    latest_version: int
     row_count: int
     updated_at: datetime
-    is_active: bool
 
 
 class DatasetDetail(BaseModel):
-    id: uuid.UUID
+    id: str  # MLflow dataset_id
     name: str
-    team_name: str
+    experiment_id: str
     description: str
-    versions: list[DatasetVersionInfo]
     rows: list[dict[str, Any]]
 
 
 class DatasetCreate(BaseModel):
     name: str
-    team_name: str
     description: str = ""
     rows: list[dict[str, Any]]
 
@@ -46,7 +32,7 @@ class DatasetUpdate(BaseModel):
 
 
 class DatasetResponse(BaseModel):
-    id: uuid.UUID
+    id: str  # MLflow dataset_id
     name: str
-    version: int
+    experiment_id: str
     row_count: int

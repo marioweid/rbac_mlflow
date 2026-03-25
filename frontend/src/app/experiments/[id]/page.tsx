@@ -3,11 +3,11 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { apiFetch } from "@/lib/api";
 import { formatDuration, formatTimestamp, statusColor } from "@/lib/format";
-import type { ExperimentDetail, RunListResponse } from "@/lib/types";
+import type { DatasetSummary, ExperimentDetail, RunListResponse } from "@/lib/types";
 
 import { RunEvaluationButton } from "./RunEvaluationButton";
 
-function hasStartRunAccess(groups: string[] | undefined, teamName: string): boolean {
+function hasWriteAccess(groups: string[] | undefined, teamName: string): boolean {
   return (groups ?? []).some(
     (g) => g === `/${teamName}/engineers` || g === `/${teamName}/owners`,
   );
@@ -30,6 +30,12 @@ async function getRuns(
   return (await res.json()) as RunListResponse;
 }
 
+async function getDatasets(id: string): Promise<DatasetSummary[]> {
+  const res = await apiFetch(`/experiments/${id}/datasets`);
+  if (!res.ok) return [];
+  return (await res.json()) as DatasetSummary[];
+}
+
 export default async function ExperimentPage({
   params,
   searchParams,
@@ -41,9 +47,10 @@ export default async function ExperimentPage({
   const { order_by: orderBy } = await searchParams;
   const currentOrder = orderBy ?? "start_time DESC";
 
-  const [experiment, runsData, session] = await Promise.all([
+  const [experiment, runsData, datasets, session] = await Promise.all([
     getExperiment(id),
     getRuns(id, currentOrder),
+    getDatasets(id),
     auth(),
   ]);
 
@@ -59,7 +66,7 @@ export default async function ExperimentPage({
   }
 
   const runs = runsData?.runs ?? [];
-  const canStartRun = hasStartRunAccess(session?.groups, experiment.team_name);
+  const canWrite = hasWriteAccess(session?.groups, experiment.team_name);
 
   return (
     <main className="max-w-6xl mx-auto p-6">
@@ -83,12 +90,72 @@ export default async function ExperimentPage({
         </div>
       </div>
 
+      {/* Datasets section */}
+      <div className="mb-8">
+        <div className="flex justify-between items-center mb-3">
+          <h2 className="text-lg font-semibold">Datasets</h2>
+          {canWrite && (
+            <Link
+              href={`/experiments/${id}/datasets/new`}
+              className="bg-blue-600 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-700"
+            >
+              New dataset
+            </Link>
+          )}
+        </div>
+
+        {datasets.length === 0 ? (
+          <p className="text-gray-500 text-sm">No datasets yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="border-b border-gray-200 text-left text-gray-600">
+                  <th className="py-2 pr-6">Name</th>
+                  <th className="py-2 pr-6">Rows</th>
+                  <th className="py-2 pr-6">Updated</th>
+                </tr>
+              </thead>
+              <tbody>
+                {datasets.map((ds) => (
+                  <tr
+                    key={ds.id}
+                    className="border-b border-gray-100 hover:bg-gray-50"
+                  >
+                    <td className="py-2 pr-6">
+                      <Link
+                        href={`/experiments/${id}/datasets/${ds.id}`}
+                        className="text-blue-600 hover:underline font-medium"
+                      >
+                        {ds.name}
+                      </Link>
+                      <span className="block text-xs text-gray-400 font-mono truncate max-w-xs">
+                        {ds.id}
+                      </span>
+                      {ds.description && (
+                        <span className="block text-xs text-gray-500 truncate max-w-xs">
+                          {ds.description}
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-2 pr-6">{ds.row_count}</td>
+                    <td className="py-2 pr-6 text-gray-500">
+                      {new Date(ds.updated_at).toLocaleDateString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Runs section */}
       <div className="flex justify-between items-center mb-3">
         <h2 className="text-lg font-semibold">Runs</h2>
-        {canStartRun && (
+        {canWrite && (
           <RunEvaluationButton
             experimentId={id}
-            teamName={experiment.team_name}
           />
         )}
       </div>

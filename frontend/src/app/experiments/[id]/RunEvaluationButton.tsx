@@ -6,10 +6,9 @@ import { RunEvaluationModal } from "./RunEvaluationModal";
 
 interface Props {
   experimentId: string;
-  teamName: string;
 }
 
-export function RunEvaluationButton({ experimentId, teamName }: Props) {
+export function RunEvaluationButton({ experimentId }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -23,7 +22,6 @@ export function RunEvaluationButton({ experimentId, teamName }: Props) {
       {open && (
         <RunEvaluationModal
           experimentId={experimentId}
-          teamName={teamName}
           onClose={() => setOpen(false)}
         />
       )}

@@ -6,26 +6,19 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 
 import { clientApiFetch } from "@/lib/client-api";
-import type {
-  DatasetDetail,
-  DatasetSummary,
-  StartRunResponse,
-} from "@/lib/types";
+import type { DatasetSummary, StartRunResponse } from "@/lib/types";
 
 interface Props {
   experimentId: string;
-  teamName: string;
   onClose: () => void;
 }
 
-export function RunEvaluationModal({ experimentId, teamName, onClose }: Props) {
+export function RunEvaluationModal({ experimentId, onClose }: Props) {
   const router = useRouter();
   const { data: session } = useSession();
 
   const [datasets, setDatasets] = useState<DatasetSummary[]>([]);
   const [selectedDatasetId, setSelectedDatasetId] = useState<string>("");
-  const [versions, setVersions] = useState<{ version: number; row_count: number }[]>([]);
-  const [selectedVersion, setSelectedVersion] = useState<number | null>(null);
   const [runName, setRunName] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -35,13 +28,15 @@ export function RunEvaluationModal({ experimentId, teamName, onClose }: Props) {
     async function fetchDatasets() {
       setLoading(true);
       try {
-        const res = await clientApiFetch("/datasets", session?.accessToken);
+        const res = await clientApiFetch(
+          `/experiments/${experimentId}/datasets`,
+          session?.accessToken,
+        );
         if (!res.ok) {
           setError("Failed to load datasets.");
           return;
         }
-        const all = (await res.json()) as DatasetSummary[];
-        setDatasets(all.filter((d) => d.team_name === teamName && d.is_active));
+        setDatasets((await res.json()) as DatasetSummary[]);
       } catch {
         setError("Failed to load datasets.");
       } finally {
@@ -49,27 +44,7 @@ export function RunEvaluationModal({ experimentId, teamName, onClose }: Props) {
       }
     }
     void fetchDatasets();
-  }, [session?.accessToken, teamName]);
-
-  useEffect(() => {
-    if (!selectedDatasetId) {
-      setVersions([]);
-      setSelectedVersion(null);
-      return;
-    }
-    async function fetchVersions() {
-      const res = await clientApiFetch(
-        `/datasets/${selectedDatasetId}`,
-        session?.accessToken,
-      );
-      if (!res.ok) return;
-      const detail = (await res.json()) as DatasetDetail;
-      const sorted = [...detail.versions].sort((a, b) => b.version - a.version);
-      setVersions(sorted);
-      setSelectedVersion(sorted[0]?.version ?? null);
-    }
-    void fetchVersions();
-  }, [selectedDatasetId, session?.accessToken]);
+  }, [session?.accessToken, experimentId]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -86,7 +61,6 @@ export function RunEvaluationModal({ experimentId, teamName, onClose }: Props) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             dataset_id: selectedDatasetId,
-            dataset_version: selectedVersion,
             run_name: runName || null,
           }),
         },
@@ -135,7 +109,7 @@ export function RunEvaluationModal({ experimentId, teamName, onClose }: Props) {
               </label>
               {datasets.length === 0 ? (
                 <p className="text-sm text-gray-500">
-                  No datasets available for {teamName}.
+                  No datasets available for this experiment.
                 </p>
               ) : (
                 <select
@@ -147,31 +121,12 @@ export function RunEvaluationModal({ experimentId, teamName, onClose }: Props) {
                   <option value="">Select a dataset&hellip;</option>
                   {datasets.map((d) => (
                     <option key={d.id} value={d.id}>
-                      {d.name} (v{d.latest_version}, {d.row_count} rows)
+                      {d.name} ({d.row_count} rows)
                     </option>
                   ))}
                 </select>
               )}
             </div>
-
-            {versions.length > 0 && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Version
-                </label>
-                <select
-                  value={selectedVersion ?? ""}
-                  onChange={(e) => setSelectedVersion(Number(e.target.value))}
-                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
-                >
-                  {versions.map((v) => (
-                    <option key={v.version} value={v.version}>
-                      v{v.version} &mdash; {v.row_count} rows
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

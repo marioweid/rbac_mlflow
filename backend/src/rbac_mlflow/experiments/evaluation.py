@@ -7,68 +7,69 @@ requiring external API keys. A future phase can plug in a real model endpoint.
 
 import logging
 import time
-import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 from fastapi import HTTPException
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from rbac_mlflow.experiments.schemas import StartRunResponse
-from rbac_mlflow.mlflow_client import create_run, log_batch, update_run
-from rbac_mlflow.models import Dataset, DatasetVersion
-from rbac_mlflow.s3_client import S3Client
+from rbac_mlflow.mlflow_client import (
+    create_run,
+    get_mlflow_dataset,
+    get_mlflow_dataset_experiment_ids,
+    get_mlflow_dataset_records,
+    log_batch,
+    log_dataset_inputs,
+    update_run,
+)
 
 log = logging.getLogger(__name__)
 
 
 async def run_evaluation(
     mlflow: httpx.AsyncClient,
-    s3: S3Client,
-    db: AsyncSession,
     experiment_id: str,
-    dataset_id: uuid.UUID,
-    dataset_version: int | None,
+    dataset_id: str,
     run_name: str | None,
     user_sub: str,
-    experiment_team_id: uuid.UUID,
 ) -> StartRunResponse:
     """Create an MLflow run and execute deterministic evaluation against a dataset.
 
     Args:
         mlflow: Shared MLflow httpx client.
-        s3: S3 client for downloading dataset files.
-        db: Async DB session.
         experiment_id: MLflow experiment ID to run against.
-        dataset_id: RBAC dataset UUID.
-        dataset_version: Specific version to evaluate, or None for latest.
+        dataset_id: MLflow dataset ID (e.g. "d-1cafa29844fe4a24a60dc53189b6eccb").
         run_name: Human-readable name for the run, or None to auto-generate.
         user_sub: JWT sub of the user triggering the run (for audit tags).
-        experiment_team_id: Team that owns the experiment (for cross-team validation).
 
     Returns:
         StartRunResponse with the created run's ID, name, and final status.
     """
-    dataset, version_row = await _load_dataset_and_version(
-        db, dataset_id, dataset_version, experiment_team_id
-    )
-    rows = await s3.download_jsonl(version_row.s3_key)
+    dataset, rows = await _load_dataset_and_records(mlflow, dataset_id, experiment_id)
 
-    effective_run_name = run_name or _auto_run_name(dataset.name, version_row.version)
+    effective_run_name = run_name or _auto_run_name(dataset["name"])
 
     tags = {
         "mlflow.runName": effective_run_name,
-        "dataset_id": str(dataset_id),
-        "dataset_version": str(version_row.version),
-        "dataset_name": dataset.name,
+        "dataset_id": dataset_id,
+        "dataset_name": dataset["name"],
         "started_by": user_sub,
     }
     mlflow_run = await create_run(mlflow, experiment_id, effective_run_name, tags)
     run_id: str = mlflow_run["info"]["run_id"]
 
+    # Log dataset lineage so it appears as a run input in the MLflow UI
+    await log_dataset_inputs(
+        mlflow,
+        run_id,
+        dataset["name"],
+        dataset.get("digest", ""),
+        source=f"mlflow://datasets/{dataset_id}",
+        source_type="mlflow",
+    )
+
     try:
-        status = await _score_and_log(mlflow, run_id, rows, dataset.name, version_row.version)
+        status = await _score_and_log(mlflow, run_id, rows, dataset["name"])
     except Exception:
         log.exception("Evaluation failed for run %s", run_id)
         await update_run(mlflow, run_id, status="FAILED")
@@ -82,50 +83,25 @@ async def run_evaluation(
     )
 
 
-async def _load_dataset_and_version(
-    db: AsyncSession,
-    dataset_id: uuid.UUID,
-    dataset_version: int | None,
-    experiment_team_id: uuid.UUID,
-) -> tuple[Dataset, DatasetVersion]:
-    """Load and validate dataset + version from the database."""
-    ds_result = await db.execute(
-        select(Dataset).where(Dataset.id == dataset_id, Dataset.is_active.is_(True))
-    )
-    dataset = ds_result.scalar_one_or_none()
-    if dataset is None:
+async def _load_dataset_and_records(
+    mlflow: httpx.AsyncClient,
+    dataset_id: str,
+    experiment_id: str,
+) -> tuple[dict, list[dict]]:
+    """Load dataset metadata and records from MLflow, verifying experiment ownership."""
+    exp_ids = await get_mlflow_dataset_experiment_ids(mlflow, dataset_id)
+    if not exp_ids:
         raise HTTPException(status_code=404, detail=f"Dataset '{dataset_id}' not found")
 
-    if dataset.team_id != experiment_team_id:
+    if experiment_id not in exp_ids:
         raise HTTPException(
             status_code=403,
-            detail="Dataset does not belong to the same team as the experiment",
+            detail="Dataset does not belong to this experiment",
         )
 
-    if dataset_version is not None:
-        v_stmt = select(DatasetVersion).where(
-            DatasetVersion.dataset_id == dataset_id,
-            DatasetVersion.version == dataset_version,
-        )
-    else:
-        v_stmt = (
-            select(DatasetVersion)
-            .where(DatasetVersion.dataset_id == dataset_id)
-            .order_by(DatasetVersion.version.desc())
-            .limit(1)
-        )
-
-    v_result = await db.execute(v_stmt)
-    version_row = v_result.scalar_one_or_none()
-    if version_row is None:
-        detail = (
-            f"Dataset version {dataset_version} not found"
-            if dataset_version is not None
-            else "Dataset has no versions"
-        )
-        raise HTTPException(status_code=404, detail=detail)
-
-    return dataset, version_row
+    dataset = await get_mlflow_dataset(mlflow, dataset_id)
+    records = await get_mlflow_dataset_records(mlflow, dataset_id)
+    return dataset, records
 
 
 async def _score_and_log(
@@ -133,7 +109,6 @@ async def _score_and_log(
     run_id: str,
     rows: list[dict],
     dataset_name: str,
-    version: int,
 ) -> str:
     """Run deterministic scorers, log results, and mark the run FINISHED."""
     exact_match_scores, is_non_empty_scores = _score_rows(rows)
@@ -162,7 +137,6 @@ async def _score_and_log(
     ]
     params = [
         {"key": "dataset_name", "value": dataset_name},
-        {"key": "dataset_version", "value": str(version)},
         {"key": "scorer", "value": "deterministic_identity"},
     ]
     await log_batch(mlflow, run_id, metrics=metrics, params=params)
@@ -193,6 +167,6 @@ def _score_rows(rows: list[dict]) -> tuple[list[float], list[float]]:
     return exact_match, is_non_empty
 
 
-def _auto_run_name(dataset_name: str, version: int) -> str:
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-    return f"eval-{dataset_name}-v{version}-{timestamp}"
+def _auto_run_name(dataset_name: str) -> str:
+    timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+    return f"eval-{dataset_name}-{timestamp}"
