@@ -12,6 +12,8 @@ dependencies = [
     "asyncpg==0.31.0",
     "alembic==1.18.4",
     "boto3>=1.42.74",
+    "mlflow>=3.10.1",
+    "openai>=1.0.0",
 ]
 
 [build-system]

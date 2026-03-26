@@ -45,6 +45,7 @@ FIXTURE_PATH = Path(__file__).parent.parent / "tests" / "fixtures" / "golden_sam
 METRIC_THRESHOLDS: dict[str, float] = {
     "exact_match/mean": 0.9,
     "is_non_empty/mean": 0.95,
+    "facts_covered/mean": 0.9,
 }
 
 
@@ -230,20 +231,43 @@ def _is_non_empty(actual: str) -> float:
     return 1.0 if actual.strip() else 0.0
 
 
+def _facts_covered(expected_facts: list[str], actual: str) -> float:
+    """Fraction of expected facts whose text appears in the actual response (case-insensitive)."""
+    if not expected_facts:
+        return 1.0
+    hits = sum(1 for f in expected_facts if f.strip().lower() in actual.lower())
+    return hits / len(expected_facts)
+
+
+def _get_ground_truth(expectations: dict) -> str:
+    """Return the primary ground-truth string from an expectations dict.
+
+    Prefers expected_response; falls back to joining expected_facts.
+    """
+    if "expected_response" in expectations:
+        return str(expectations["expected_response"])
+    facts: list = expectations.get("expected_facts", [])
+    return " ".join(str(f) for f in facts)
+
+
 def _evaluate_dataset(fixture_path: Path) -> dict[str, float]:
-    """Score each row; model returns the expected answer (perfect baseline)."""
+    """Score each row; model echoes the ground truth (perfect deterministic baseline)."""
     rows = [json.loads(line) for line in fixture_path.read_text().splitlines() if line.strip()]
     exact_scores: list[float] = []
     non_empty_scores: list[float] = []
+    facts_scores: list[float] = []
     for row in rows:
-        expected = row["expectations"]["expected_response"]
-        # Deterministic "model": echo the expected answer.
-        actual = expected
-        exact_scores.append(_exact_match(expected, actual))
+        expectations: dict = row["expectations"]
+        ground_truth = _get_ground_truth(expectations)
+        # Deterministic "model": echo the ground truth.
+        actual = ground_truth
+        exact_scores.append(_exact_match(ground_truth, actual))
         non_empty_scores.append(_is_non_empty(actual))
+        facts_scores.append(_facts_covered(expectations.get("expected_facts", []), actual))
     return {
         "exact_match/mean": sum(exact_scores) / len(exact_scores),
         "is_non_empty/mean": sum(non_empty_scores) / len(non_empty_scores),
+        "facts_covered/mean": sum(facts_scores) / len(facts_scores),
         "row_count": float(len(rows)),
     }
 

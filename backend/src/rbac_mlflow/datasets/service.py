@@ -23,7 +23,6 @@ from rbac_mlflow.mlflow_client import (
     upsert_mlflow_dataset_records,
 )
 
-
 _MLFLOW_RECORD_INTERNAL_FIELDS = {
     "dataset_record_id",
     "dataset_id",

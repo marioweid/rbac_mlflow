@@ -1,11 +1,12 @@
 import uuid
 
 import httpx
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from rbac_mlflow.auth.dependencies import get_current_user
 from rbac_mlflow.auth.providers.base import TokenClaims
+from rbac_mlflow.config import settings
 from rbac_mlflow.db import get_db
 from rbac_mlflow.experiments.evaluation import run_evaluation
 from rbac_mlflow.experiments.schemas import (
@@ -22,7 +23,12 @@ from rbac_mlflow.experiments.service import (
     list_experiments_for_user,
     list_runs,
 )
-from rbac_mlflow.mlflow_client import get_mlflow_client
+from rbac_mlflow.mlflow_client import (
+    get_mlflow_client,
+    get_mlflow_dataset,
+    get_mlflow_dataset_experiment_ids,
+    get_mlflow_dataset_records,
+)
 from rbac_mlflow.rbac.constants import Permission
 from rbac_mlflow.rbac.dependencies import (
     get_team_roles,
@@ -90,10 +96,20 @@ async def start_run(
     user: TokenClaims = Depends(get_current_user),
 ) -> StartRunResponse:
     """Start an evaluation run against a dataset. Requires engineer or owner role."""
+    exp_ids = await get_mlflow_dataset_experiment_ids(mlflow, body.dataset_id)
+    if not exp_ids:
+        raise HTTPException(status_code=404, detail=f"Dataset '{body.dataset_id}' not found")
+    if experiment_id not in exp_ids:
+        raise HTTPException(status_code=403, detail="Dataset does not belong to this experiment")
+
+    dataset = await get_mlflow_dataset(mlflow, body.dataset_id)
+    rows = await get_mlflow_dataset_records(mlflow, body.dataset_id)
+
     result = await run_evaluation(
-        mlflow=mlflow,
+        tracking_uri=settings.mlflow_tracking_uri,
         experiment_id=experiment_id,
-        dataset_id=body.dataset_id,
+        dataset_name=dataset["name"],
+        rows=rows,
         run_name=body.run_name,
         user_sub=user.sub,
     )

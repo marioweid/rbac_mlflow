@@ -15,17 +15,15 @@ from rbac_mlflow.main import app
 from rbac_mlflow.mlflow_client import get_mlflow_client
 from rbac_mlflow.rbac.dependencies import get_team_roles
 from rbac_mlflow.rbac.schemas import TeamRole
-from rbac_mlflow.s3_client import get_s3_client
 
 TEAM_ALPHA_ID = uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
 TEAM_BETA_ID = uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
-DATASET_ID = uuid.UUID("dddddddd-dddd-dddd-dddd-dddddddddddd")
+DATASET_ID = "d-dddddddddddd4a24a60dc53189b6eccb"
 EXPERIMENT_ID = "42"
 AUTH_HEADERS = {"Authorization": "Bearer fake-token"}
 
 START_BODY = {
-    "dataset_id": str(DATASET_ID),
-    "dataset_version": 1,
+    "dataset_id": DATASET_ID,
     "run_name": "test-run",
 }
 
@@ -46,15 +44,35 @@ def _patch_auth(claims: TokenClaims):
     )
 
 
+def _patch_mlflow_dataset_calls():
+    """Patch the three MLflow client calls the router makes before run_evaluation."""
+    return (
+        patch(
+            "rbac_mlflow.experiments.router.get_mlflow_dataset_experiment_ids",
+            new_callable=AsyncMock,
+            return_value=[EXPERIMENT_ID],
+        ),
+        patch(
+            "rbac_mlflow.experiments.router.get_mlflow_dataset",
+            new_callable=AsyncMock,
+            return_value={"dataset_id": DATASET_ID, "name": "test-ds", "digest": "abc"},
+        ),
+        patch(
+            "rbac_mlflow.experiments.router.get_mlflow_dataset_records",
+            new_callable=AsyncMock,
+            return_value=[
+                {"inputs": {"question": "Q1"}, "expectations": {"expected_response": "A1"}}
+            ],
+        ),
+    )
+
+
 def _mock_db_for_experiment(team_id: uuid.UUID) -> AsyncMock:
     """Mock DB that returns a team_id for the experiment permission check and
     absorbs the audit log commit."""
     db = AsyncMock()
-    call_count = 0
 
     async def execute_side(stmt):
-        nonlocal call_count
-        call_count += 1
         result = MagicMock()
         row = MagicMock()
         row.team_id = team_id
@@ -70,12 +88,6 @@ def _mock_db_for_experiment(team_id: uuid.UUID) -> AsyncMock:
 
 def _mock_mlflow() -> AsyncMock:
     return AsyncMock(spec=httpx.AsyncClient)
-
-
-def _mock_s3() -> AsyncMock:
-    s3 = AsyncMock()
-    s3.download_jsonl = AsyncMock(return_value=[])
-    return s3
 
 
 @pytest.fixture(autouse=True)
@@ -113,14 +125,16 @@ class TestStartRunRBAC:
         bob_team_roles: list[TeamRole],
     ) -> None:
         db = _mock_db_for_experiment(TEAM_ALPHA_ID)
-        s3 = _mock_s3()
         app.dependency_overrides[get_team_roles] = lambda: bob_team_roles
         app.dependency_overrides[get_db] = lambda: db
-        app.dependency_overrides[get_s3_client] = lambda: s3
         app.dependency_overrides[get_mlflow_client] = lambda: _mock_mlflow()
 
+        p_exp_ids, p_dataset, p_records = _patch_mlflow_dataset_calls()
         with (
             _patch_auth(bob_claims),
+            p_exp_ids,
+            p_dataset,
+            p_records,
             patch(
                 "rbac_mlflow.experiments.router.run_evaluation",
                 new_callable=AsyncMock,
@@ -144,14 +158,16 @@ class TestStartRunRBAC:
         carol_team_roles: list[TeamRole],
     ) -> None:
         db = _mock_db_for_experiment(TEAM_ALPHA_ID)
-        s3 = _mock_s3()
         app.dependency_overrides[get_team_roles] = lambda: carol_team_roles
         app.dependency_overrides[get_db] = lambda: db
-        app.dependency_overrides[get_s3_client] = lambda: s3
         app.dependency_overrides[get_mlflow_client] = lambda: _mock_mlflow()
 
+        p_exp_ids, p_dataset, p_records = _patch_mlflow_dataset_calls()
         with (
             _patch_auth(carol_claims),
+            p_exp_ids,
+            p_dataset,
+            p_records,
             patch(
                 "rbac_mlflow.experiments.router.run_evaluation",
                 new_callable=AsyncMock,
@@ -175,14 +191,16 @@ class TestStartRunRBAC:
         bob_team_roles: list[TeamRole],
     ) -> None:
         db = _mock_db_for_experiment(TEAM_ALPHA_ID)
-        s3 = _mock_s3()
         app.dependency_overrides[get_team_roles] = lambda: bob_team_roles
         app.dependency_overrides[get_db] = lambda: db
-        app.dependency_overrides[get_s3_client] = lambda: s3
         app.dependency_overrides[get_mlflow_client] = lambda: _mock_mlflow()
 
+        p_exp_ids, p_dataset, p_records = _patch_mlflow_dataset_calls()
         with (
             _patch_auth(bob_claims),
+            p_exp_ids,
+            p_dataset,
+            p_records,
             patch(
                 "rbac_mlflow.experiments.router.run_evaluation",
                 new_callable=AsyncMock,
@@ -210,14 +228,16 @@ class TestStartRunRBAC:
         bob_team_roles: list[TeamRole],
     ) -> None:
         db = _mock_db_for_experiment(TEAM_ALPHA_ID)
-        s3 = _mock_s3()
         app.dependency_overrides[get_team_roles] = lambda: bob_team_roles
         app.dependency_overrides[get_db] = lambda: db
-        app.dependency_overrides[get_s3_client] = lambda: s3
         app.dependency_overrides[get_mlflow_client] = lambda: _mock_mlflow()
 
+        p_exp_ids, p_dataset, p_records = _patch_mlflow_dataset_calls()
         with (
             _patch_auth(bob_claims),
+            p_exp_ids,
+            p_dataset,
+            p_records,
             patch(
                 "rbac_mlflow.experiments.router.run_evaluation",
                 new_callable=AsyncMock,
@@ -247,7 +267,6 @@ class TestStartRunRBAC:
         dave_claims: TokenClaims,
         dave_team_roles: list[TeamRole],
     ) -> None:
-        # Experiment belongs to team-alpha; dave is in team-beta only
         db = _mock_db_for_experiment(TEAM_ALPHA_ID)
         app.dependency_overrides[get_team_roles] = lambda: dave_team_roles
         app.dependency_overrides[get_db] = lambda: db
@@ -271,16 +290,18 @@ class TestStartRunRBAC:
         bob_team_roles: list[TeamRole],
     ) -> None:
         db = _mock_db_for_experiment(TEAM_ALPHA_ID)
-        s3 = _mock_s3()
         app.dependency_overrides[get_team_roles] = lambda: bob_team_roles
         app.dependency_overrides[get_db] = lambda: db
-        app.dependency_overrides[get_s3_client] = lambda: s3
         app.dependency_overrides[get_mlflow_client] = lambda: _mock_mlflow()
 
         custom_name = "my-special-run"
 
+        p_exp_ids, p_dataset, p_records = _patch_mlflow_dataset_calls()
         with (
             _patch_auth(bob_claims),
+            p_exp_ids,
+            p_dataset,
+            p_records,
             patch(
                 "rbac_mlflow.experiments.router.run_evaluation",
                 new_callable=AsyncMock,
